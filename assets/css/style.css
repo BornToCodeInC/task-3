@@ -13,6 +13,7 @@ html {
 }
 
 body {
+    font-size: 16px;
     width: 50rem;
     position: relative;
     background: #FFEE00;
@@ -187,7 +188,7 @@ form div input[type="submit"] {
 
 /* setting cursor for interactive controls */
 
-button, input[type="submit"], select {
+button, input[type="submit"], input[type="radio"], select {
     cursor: pointer;
 }
 

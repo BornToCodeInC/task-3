@@ -11,7 +11,6 @@ if ('serviceWorker' in navigator) {
     }
 
   }).catch(function(error) {
-    // registration failed
     console.log('Registration failed with ' + error);
   });
 }
@@ -78,51 +77,6 @@ const newItem = [
 ];
 
 window.onload = function() {
-  function notifyMe() {
-    // Let's check if the browser supports notifications
-    if (!("Notification" in window)) {
-      alert("This browser does not support system notifications");
-    }
-
-    // Let's check whether notification permissions have already been granted
-    else if (Notification.permission === "granted") {
-      // If it's okay let's create a notification
-      var notification = new Notification("Hi there!");
-      // if (new Date().getDate() === 10){
-      //   new Notification(new Date().getDate());
-      // }
-      if (new Date().getMinutes() === 31){
-        new Notification(new Date().getMinutes());
-      }
-      var interval = window.setInterval(function () {
-        // Thanks to the tag, we should only see the "Hi! 9" notification
-
-        if (new Date().getMinutes() === 37) {
-          window.clearInterval(interval);
-          new Notification("Hi! ", {tag: 'soManyNotification'})
-        }
-      }, 200);
-    }
-
-    // Otherwise, we need to ask the user for permission
-    else if (Notification.permission !== 'denied') {
-      Notification.requestPermission(function (permission) {
-        // If the user accepts, let's create a notification
-        if (permission === "granted") {
-          var notification = new Notification("Hi there!");
-        }
-      });
-    }
-
-    // Finally, if the user has denied notifications and you
-    // want to be respectful there is no need to bother them any more.
-  }
-  // Notification.requestPermission().then(function(result) {
-  //   console.log(result);
-  //   // notifyMe();
-  // });
-    getEvents(EVENT_LIST_URL);
-
   note.innerHTML += '<li>App initialised.</li>';
   window.indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
   window.IDBTransaction = window.IDBTransaction || window.webkitIDBTransaction || window.msIDBTransaction;
@@ -133,10 +87,76 @@ window.onload = function() {
     note.innerHTML += '<li>Error loading database.</li>';
   };
 
+  const deleteItem = (e) => {
+    const dataEvent = e.target.getAttribute('data-event');
+
+    const transaction = db.transaction(['eventList'], 'readwrite');
+    const request = transaction.objectStore('eventList').delete(dataEvent);
+
+    transaction.oncomplete = () => {
+      e.target.parentNode.parentNode.removeChild(e.target.parentNode);
+      note.innerHTML += '<li>Task \"' + dataEvent + '\" deleted.</li>';
+    };
+  };
+
+  const displayData = () => {
+    eventList.innerHTML = "";
+    const objectStore = db.transaction('eventList').objectStore('eventList');
+    objectStore.openCursor().onsuccess = (event) => {
+      const cursor = event.target.result;
+
+      if(cursor) {
+        const listItem = document.createElement('li');
+        // check which suffix the deadline day of the month needs
+        let daySuffix;
+        if(cursor.value.day === 1 || cursor.value.day === 21 || cursor.value.day === 31) {
+          daySuffix = "st";
+        } else if(cursor.value.day === 2 || cursor.value.day === 22) {
+          daySuffix = "nd";
+        } else if(cursor.value.day === 3 || cursor.value.day === 23) {
+          daySuffix = "rd";
+        } else {
+          daySuffix = "th";
+        }
+
+        listItem.innerHTML = `${cursor.value.eventTitle} — ${cursor.value.hours} : ${cursor.value.minutes} ,
+         ${cursor.value.month} ${cursor.value.day}${daySuffix} ${cursor.value.year}.`;
+        const now = new Date();
+        const minuteCheck = now.getMinutes();
+        const hourCheck = now.getHours();
+        const dayCheck = now.getDate();
+        const monthCheck = now.getMonth();
+        const yearCheck = now.getFullYear();
+        const monthNumber = formatMonth(cursor.value.month);
+        if (+(cursor.value.year) < yearCheck && monthNumber < monthCheck && +(cursor.value.day) < dayCheck &&
+          +(cursor.value.hours) < hourCheck && +(cursor.value.minutes) < minuteCheck) {
+          if(cursor.value.notified === 'yes') {
+            listItem.style.textDecoration = 'line-through';
+            listItem.style.color = 'rgba(255,0,0,0.5)';
+          } else {
+            listItem.style.color = 'rgb(63, 66, 68)';
+          }
+        }
+
+        eventList.appendChild(listItem);
+
+        const deleteButton = document.createElement('button');
+        listItem.appendChild(deleteButton);
+        deleteButton.innerHTML = 'X';
+        deleteButton.setAttribute('data-event', cursor.value.eventTitle);
+        deleteButton.onclick = (event) => {
+          deleteItem(event);
+        }
+        cursor.continue();
+      } else {
+        note.innerHTML += '<li>Entries all displayed.</li>';
+      }
+    }
+  };
+
   DBOpenRequest.onsuccess = (event) => {
     note.innerHTML += '<li>Database initialised.</li>';
     db = DBOpenRequest.result;
-    // Run the displayData() function to populate the  list with all the to-do list data already in the IDB
     displayData();
   };
   DBOpenRequest.onupgradeneeded = (event) => {
@@ -180,7 +200,6 @@ window.onload = function() {
       transaction.oncomplete = () => {
         note.innerHTML += '<li>Transaction completed: database modification finished.</li>';
 
-        // update the display of data to show the newly added item, by running displayData() again.
         displayData();
       };
 
@@ -196,7 +215,6 @@ window.onload = function() {
       console.log(objectStore.transaction);
       console.log(objectStore.autoIncrement);
 
-      // Make a request to add our newItem object to the object store
       const objectStoreRequest = objectStore.add(newItem[0]);
       objectStoreRequest.onsuccess = (event) => {
         note.innerHTML += '<li>Request successful.</li>';
@@ -210,84 +228,8 @@ window.onload = function() {
       };
     };
   };
-  const deleteItem = (e) => {
-    // retrieve the name of the task we want to delete
-    const dataEvent = e.target.getAttribute('data-event');
 
-    // open a database transaction and delete the task, finding it by the name we retrieved above
-    const transaction = db.transaction(['eventList'], 'readwrite');
-    const request = transaction.objectStore('eventList').delete(dataEvent);
-
-    // report that the data item has been deleted
-    transaction.oncomplete = () => {
-      // delete the parent of the button, which is the list item, so it no longer is displayed
-      e.target.parentNode.parentNode.removeChild(e.target.parentNode);
-      note.innerHTML += '<li>Task \"' + dataEvent + '\" deleted.</li>';
-    };
-  };
-  function displayData() {
-    eventList.innerHTML = "";
-    // Open our object store and then get a cursor list of all the different data items in the IDB to iterate through
-    const objectStore = db.transaction('eventList').objectStore('eventList');
-    objectStore.openCursor().onsuccess = (event) => {
-      const cursor = event.target.result;
-      // if there is still another cursor to go, keep runing this code
-      if(cursor) {
-        // create a list item to put each data item inside when displaying it
-        const listItem = document.createElement('li');
-        // check which suffix the deadline day of the month needs
-        if(cursor.value.day === 1 || cursor.value.day === 21 || cursor.value.day === 31) {
-          daySuffix = "st";
-        } else if(cursor.value.day === 2 || cursor.value.day === 22) {
-          daySuffix = "nd";
-        } else if(cursor.value.day === 3 || cursor.value.day === 23) {
-          daySuffix = "rd";
-        } else {
-          daySuffix = "th";
-        }
-
-        // build the list entry and put it into the list item via innerHTML.
-        listItem.innerHTML = `${cursor.value.eventTitle} — ${cursor.value.hours} : ${cursor.value.minutes} ,
-         ${cursor.value.month} ${cursor.value.day}${daySuffix} ${cursor.value.year}.`;
-        const now = new Date();
-        const minuteCheck = now.getMinutes();
-        const hourCheck = now.getHours();
-        const dayCheck = now.getDate();
-        const monthCheck = now.getMonth();
-        const yearCheck = now.getFullYear();
-        const monthNumber = formatMonth(cursor.value.month);
-        if (+(cursor.value.year) < yearCheck && monthNumber < monthCheck && +(cursor.value.day) < dayCheck &&
-          +(cursor.value.hours) < hourCheck && +(cursor.value.minutes) < minuteCheck) {
-          if(cursor.value.notified === 'yes') {
-            listItem.style.textDecoration = 'line-through';
-            listItem.style.color = 'rgba(255,0,0,0.5)';
-          } else {
-            listItem.style.color = 'rgb(63, 66, 68)';
-          }
-        }
-
-        // put the item item inside the list
-        eventList.appendChild(listItem);
-
-        // create a delete button inside each list item, giving it an event handler so that it runs the deleteButton()
-        // function when clicked
-        const deleteButton = document.createElement('button');
-        listItem.appendChild(deleteButton);
-        deleteButton.innerHTML = 'X';
-        // here we are setting a data attribute on our delete button to say what task we want deleted if it is clicked!
-        deleteButton.setAttribute('data-event', cursor.value.eventTitle);
-        deleteButton.onclick = (event) => {
-          deleteItem(event);
-        }
-        // continue on to the next item in the cursor
-        cursor.continue();
-        // if there are no more cursor items to iterate through, say so, and exit the function
-      } else {
-        note.innerHTML += '<li>Entries all displayed.</li>';
-      }
-    }
-  }
-  function createNotification(title, reminder = '') {
+  const createNotification = (title, reminder = '') => {
     if (!"Notification" in window) {
       console.log("This browser does not support notifications.");
     } else if (Notification.permission === "granted") {
@@ -320,7 +262,8 @@ window.onload = function() {
       }
     }
   };
-  function checkDate() {
+
+  const checkDate = () => {
     const now = new Date();
     const minuteCheck = now.getMinutes();
     const hourCheck = now.getHours();
@@ -333,7 +276,6 @@ window.onload = function() {
       if(cursor) {
         const monthNumber = formatMonth(cursor.value.month);
         if(+(cursor.value.hours) == hourCheck && +(cursor.value.minutes) == minuteCheck && +(cursor.value.day) == dayCheck && monthNumber == monthCheck && cursor.value.year == yearCheck && cursor.value.notified == "no") {
-          // If the numbers all do match, run the createNotification() function to create a system notification
           createNotification(cursor.value.eventTitle);
         }
         const event = new Date(+(cursor.value.year), monthNumber, +(cursor.value.day));
@@ -341,11 +283,11 @@ window.onload = function() {
         if (+(reminderDate.getDate()) == dayCheck && reminderDate.getMonth() == monthCheck && +(reminderDate.getFullYear()) == yearCheck && cursor.value.notified == "no") {
           createNotification(cursor.value.eventTitle, cursor.value.reminder);
         }
-        // move on and perform the same deadline check on the next cursor item
         cursor.continue();
       }
     }
   };
+
   eventForm.addEventListener('submit',addData, false);
-  setInterval(checkDate, 200);
+  setInterval(checkDate, 1000);
 };
