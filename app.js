@@ -235,7 +235,6 @@ window.onload = function() {
       if(cursor) {
         // create a list item to put each data item inside when displaying it
         const listItem = document.createElement('li');
-        console.log(cursor);
         // check which suffix the deadline day of the month needs
         if(cursor.value.day === 1 || cursor.value.day === 21 || cursor.value.day === 31) {
           daySuffix = "st";
@@ -250,10 +249,21 @@ window.onload = function() {
         // build the list entry and put it into the list item via innerHTML.
         listItem.innerHTML = `${cursor.value.eventTitle} — ${cursor.value.hours} : ${cursor.value.minutes} ,
          ${cursor.value.month} ${cursor.value.day}${daySuffix} ${cursor.value.year}.`;
-
-        if(cursor.value.notified === 'yes') {
-          listItem.style.textDecoration = 'line-through';
-          listItem.style.color = 'rgba(255,0,0,0.5)';
+        const now = new Date();
+        const minuteCheck = now.getMinutes();
+        const hourCheck = now.getHours();
+        const dayCheck = now.getDate();
+        const monthCheck = now.getMonth();
+        const yearCheck = now.getFullYear();
+        const monthNumber = formatMonth(cursor.value.month);
+        if (+(cursor.value.year) < yearCheck && monthNumber < monthCheck && +(cursor.value.day) < dayCheck &&
+          +(cursor.value.hours) < hourCheck && +(cursor.value.minutes) < minuteCheck) {
+          if(cursor.value.notified === 'yes') {
+            listItem.style.textDecoration = 'line-through';
+            listItem.style.color = 'rgba(255,0,0,0.5)';
+          } else {
+            listItem.style.color = 'rgb(63, 66, 68)';
+          }
         }
 
         // put the item item inside the list
@@ -310,7 +320,7 @@ window.onload = function() {
       }
     }
   };
-  function checkDate() {;
+  function checkDate() {
     const now = new Date();
     const minuteCheck = now.getMinutes();
     const hourCheck = now.getHours();
