@@ -1,12 +1,12 @@
 const cacheName = 'v1';
 const cacheFiles = [
-  '/',
-  '/index.html',
-  '/assets/css/style.css',
-  '/app.js',
-  '/eventList.json',
-  '/assets/img/cartoon.png',
-  '/assets/img/oops.png',
+  './',
+  './index.html',
+  './assets/css/style.css',
+  './app.js',
+  './eventList.json',
+  './assets/img/cartoon.png',
+  './assets/img/oops.png',
 ];
 
 self.addEventListener('install', function(event) {
